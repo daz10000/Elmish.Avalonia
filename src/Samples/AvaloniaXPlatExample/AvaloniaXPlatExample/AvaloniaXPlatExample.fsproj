@@ -36,9 +36,9 @@
     <!-- pinned to earlier version - no .0.4 available -->
     <PackageReference Include="Avalonia.Xaml.Behaviors" Version="11.0.5" />
 
-    <PackageReference Include="LiveChartsCore" Version="2.0.0-beta.802" />
-    <PackageReference Include="LiveChartsCore.SkiaSharpView" Version="2.0.0-beta.802" />
-    <PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" Version="2.0.0-beta.802-11.0.0-rc1.1" />
+    <PackageReference Include="LiveChartsCore" Version="2.0.0-rc2" />
+    <PackageReference Include="LiveChartsCore.SkiaSharpView" Version="2.0.0-rc2" />
+    <PackageReference Include="LiveChartsCore.SkiaSharpView.Avalonia" Version="2.0.0-rc2" />
 
 
     <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
