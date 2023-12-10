@@ -4,9 +4,10 @@ open System
 open System.Collections.Generic
 open System.Collections.ObjectModel
 open System.Reactive.Linq
-open Elmish
 open ReactiveElmish
 open ReactiveElmish.Avalonia
+open Elmish
+open DynamicData
 open LiveChartsCore
 open LiveChartsCore.Kernel.Sketches
 open LiveChartsCore.SkiaSharpView
@@ -49,7 +50,7 @@ module Chart =
     type Model = 
         {
             Series: ObservableCollection<ISeries>
-            Actions: Action list
+            Actions: SourceList<Action>
             IsAutoUpdateChecked: bool
         }
     
@@ -71,13 +72,11 @@ module Chart =
     
     let init() =
         {
-            Series = 
-                ObservableCollection<ISeries> 
-                    [ 
-                        ColumnSeries<DateTimePoint>(Values = newSeries(None), Name = "Luck By Second")
-                        :> ISeries 
-                    ]
-            Actions = [ { Description = "Initialized Chart"; Timestamp = DateTime.Now } ]
+            Series = ObservableCollection<ISeries> 
+                [ 
+                    ColumnSeries<DateTimePoint>(Values = newSeries(None), Name = "Luck By Second") :> ISeries 
+                ]
+            Actions = SourceList.createFrom [ { Description = "Initialized Chart"; Timestamp = DateTime.Now }]
             IsAutoUpdateChecked = false
         }
 
@@ -87,47 +86,41 @@ module Chart =
         | AddItem ->
             values.Insert(values.Count, DateTimePoint(DateTime.Now, rnd.Next(0, 10)))
             { model with 
-                Actions = model.Actions @ [ { Description = $"Added Item"; Timestamp = DateTime.Now } ]    
-            }
+                Actions = model.Actions |> SourceList.add { Description = $"Added Item"; Timestamp = DateTime.Now } }
         | AddNull ->
             values.Insert(values.Count, DateTimePoint(DateTime.Now, System.Nullable()))
             { model with 
-                Actions = model.Actions @ [ { Description = $"Added Null"; Timestamp = DateTime.Now } ]    
-            }
+                Actions = model.Actions |> SourceList.add { Description = $"Added Null"; Timestamp = DateTime.Now } }
         | RemoveItem ->
             values.RemoveAt(0)
             { model with 
-                Actions = model.Actions @ [ { Description = "Removed Item"; Timestamp = DateTime.Now } ]    
-            }
+                Actions = model.Actions |> SourceList.add { Description = $"Removed Item"; Timestamp = DateTime.Now } }
         | UpdateItem ->
             let item = rnd.Next(0, values.Count - 1)
             let fstValueTime = values[item].DateTime
             values[item] <- DateTimePoint(fstValueTime, rnd.Next(0, 10))
             { model with 
-                Actions = model.Actions @ [ { Description = $"Updated Item: {item + 1}"; Timestamp = DateTime.Now } ]            
-            }
+                Actions = model.Actions |> SourceList.add { Description = $"Updated Item: {item + 1}"; Timestamp = DateTime.Now } }
         | ReplaceItem ->
             let lastValueTime = values[values.Count - 1].DateTime
             values[values.Count - 1] <- DateTimePoint(lastValueTime, rnd.Next(0, 10))
             { model with 
-                Actions = model.Actions @ [ { Description = $"Replaced Item: {values.Count}"; Timestamp = DateTime.Now } ]           
-            }
+                Actions = model.Actions |> SourceList.add { Description = $"Replaced Item: {values.Count}"; Timestamp = DateTime.Now } }
         | Reset ->
             // insert new Series - send the current series length to the newSeries function
             model.Series[0].Values <- newSeries(Some values.Count)
             { model with
                 // deactivate the AutoUpdate ToggleButton in the UI
                 IsAutoUpdateChecked = false 
-                Actions = [ { Description = "Reset Chart"; Timestamp = DateTime.Now } ]
+                Actions = model.Actions |> SourceList.removeAll |> SourceList.add { Description = "Reset Chart"; Timestamp = DateTime.Now }
             }
         | SetIsAutoUpdateChecked isChecked ->
             { model with 
                 IsAutoUpdateChecked = isChecked
-                Actions = model.Actions @ [ { Description = $"Is AutoUpdate Checked: {isChecked}"; Timestamp = DateTime.Now } ]
+                Actions = model.Actions |> SourceList.add { Description = $"Is AutoUpdate Checked: {isChecked}"; Timestamp = DateTime.Now }
             }
         | Terminate ->
             model
-
 
     let subscriptions (model: Model) : Sub<Msg> =
         let autoUpdateSub (dispatch: Msg -> unit) = 
@@ -173,7 +166,8 @@ type ChartViewModel() as this =
                 local.Dispatch (SetIsAutoUpdateChecked false)
         )
 
-    member this.Actions = this.Bind (local, _.Actions)
+    member this.Series = local.Model.Series
+    member this.Actions = this.BindSourceList(local.Model.Actions)
     member this.AddItem() = local.Dispatch AddItem
     member this.RemoveItem() = local.Dispatch RemoveItem
     member this.UpdateItem() = local.Dispatch UpdateItem
@@ -182,7 +176,6 @@ type ChartViewModel() as this =
     member this.IsAutoUpdateChecked 
         with get () = this.Bind (local, _.IsAutoUpdateChecked)
         and set value = local.Dispatch (SetIsAutoUpdateChecked value)
-    member this.Series = this.Bind (local, _.Series)
     member this.XAxes = this.Bind (local, fun _ -> XAxes)
     member this.Ok() = app.Dispatch App.GoHome
 
